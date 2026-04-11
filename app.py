@@ -1,3 +1,4 @@
+import random
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
@@ -27,7 +28,7 @@ def add_problem():
 def get_all_problems():
     return jsonify(problems)
 
-@app.route("/options", methods=["POST"])
+@app.route("/option", methods=["POST"])
 def add_options():
     data = request.json
     options.append({
@@ -44,13 +45,47 @@ def add_options():
         "option": options[-1]
     })
 
-@app.rout("/options/<int:problem_id)", methods=["GET"])
+@app.route("/option/<int:problem_id>", methods=["GET"])
 def get_options_from_problem(problem_id):
     result = []
     for i in options:
         if i["problem_id"] == problem_id:
             result.append(i)
     return jsonify(result);
+
+def decide(option_list):
+    if not option_list:
+        return None
+
+    highest_priority = max(option_list, key=lambda x: x["priority"])["priority"]
+
+    top_options = [
+        o for o in option_list
+        if o["priority"] == highest_priority and o["status"] == "todo"
+    ]
+    if not top_options:
+        return None
+
+    return random.choice(top_options)
+
+#Find options related to the problem (id)
+def get_options_from_problem(problem_id):
+    problem_options = []
+    for o in options:
+        if o["problem_id"] == problem_id:
+            problem_options.append(o)
+    return problem_options
+    
+#decide an option for problem
+@app.route("/decide/<int:problem_id>")
+def decide_route(problem_id):
+    option_list = get_options_from_problem(problem_id)
+    result = decide(option_list)
+
+    if result is None:
+        return jsonify({"error": "No valid options"}), 400
+
+    return jsonify(result)
 
 if __name__ == "__main__":
     app.run(debug=True)
